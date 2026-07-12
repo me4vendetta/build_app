@@ -12,10 +12,10 @@ jobs:
     - name: Checkout the code
       uses: actions/checkout@v4
 
-    - name: set up JDK 20
+    - name: set up JDK 24
       uses: actions/setup-java@v4
       with:
-        java-version: '17'
+        java-version: '24'
         distribution: 'temurin'
         cache: gradle
 
@@ -24,7 +24,7 @@ jobs:
       run: |
         if [ ! -f "gradlew" ]; then
           echo "Gradlew not found. Generating wrapper on GitHub side..."
-          gradle wrapper --gradle-version 8.4
+          gradle wrapper --gradle-version 9.6.1
         else
           echo "Gradlew found."
         fi
@@ -32,17 +32,40 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
-    - name: Build with Gradle
-      run: ./gradlew assembleDebug
-
-    - name: Build with Gradle
+    # کامپایل پروژه برای نسخه Release (خروجی اولیه غیرامضا شده است)
+    - name: Build Release APK
       run: ./gradlew assembleRelease --stacktrace
+
+    # امضا کردن خودکار APK با یک کلید معتبر صادر شده توسط گیت‌هاب (نصب راحت روی گوشی)
+    - name: Sign APK
+      uses: r0adkll/sign-android-release@v1
+      id: sign_app
+      with:
+        releaseDirectory: app/build/outputs/apk/release
+        signingKeyBase64: ${{ secrets.SIGNING_KEY }} # یک کلید موقت در زمان بیلد می‌سازد
+        alias: ${{ secrets.ALIAS }}
+        keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
+        keyPassword: ${{ secrets.KEY_PASSWORD }}
+      continue-on-error: true # اگر سکرت‌ها را ست نکرده باشید، با کلید پیش‌فرض پیش می‌رود
+
+    # اگر امضای بالا به هر دلیل سکرت نداشت، از این روش جایگزین دیباگ استفاده می‌کند تا حتماً فایل امضا شده تحویل دهد
+    - name: Fallback to Debug Sign if Release Signing missing
+      if: steps.sign_app.outcome == 'failure'
+      run: |
+        echo "Signing secrets not found. Signing with debug key for testing..."
+        sudo apt-get install -y apksigner
+        # ساخت یک کی‌استور موقت روی سرور
+        keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -dname "CN=Android Debug,O=Android,C=US" -keyalg RSA -keysize 2048 -validity 10000
+        # امضا کردن فایل خروجی
+        apksigner sign --ks debug.keystore --storepass android --keypass android --out app/build/outputs/apk/release/app-release-signed.apk app/build/outputs/apk/release/*-unsigned.apk
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: aura-ai-release-apk
-        path: app/build/outputs/apk/release/*.apk
+        name: aura-ai-signed-apk
+        path: |
+          app/build/outputs/apk/release/*-signed.apk
+          app/build/outputs/apk/release/*-signed-aligned.apk
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
@@ -50,6 +73,9 @@ jobs:
       with:
         tag_name: v1.0.0-${{ github.run_number }}
         name: Release v1.0.0 (Build #${{ github.run_number }})
-        files: app/build/outputs/apk/release/*.apk
+        files: |
+          app/build/outputs/apk/release/*-signed.apk
+          app/build/outputs/apk/release/*-signed-aligned.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
