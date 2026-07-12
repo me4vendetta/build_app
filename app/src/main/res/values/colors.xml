@@ -1,0 +1,9 @@
+<resources>
+    <color name="aura_bg">#07071A</color>
+    <color name="aura_surface">#0D0D24</color>
+    <color name="aura_accent">#7C3AED</color>
+    <color name="aura_accent_alt">#EC4899</color>
+    <color name="aura_accent_cyan">#06B6D4</color>
+    <color name="aura_white">#E8E8F5</color>
+    <color name="aura_status_bar">#0A0A1A</color>
+</resources>
