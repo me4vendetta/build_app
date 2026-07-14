@@ -1,5 +1,0 @@
-# محل SDK اندروید را مشخص کنید. اندروید استودیو معمولاً خودش این فایل را می‌سازد.
-# پیشنهاد: این فایل را در گیت کامیت نکنید.
-# sdk.dir=/Users/you/Library/Android/sdk
-# sdk.dir=C\:\\Users\\you\\AppData\\Local\\Android\\Sdk
-# sdk.dir=/opt/android-sdk
